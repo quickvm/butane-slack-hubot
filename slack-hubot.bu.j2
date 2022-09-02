@@ -162,8 +162,8 @@ storage:
     mode: 0640
     contents:
       inline: |
-        GOOGLE_PROJECT_ID={{ google_project_id }}
-        GOOGLE_APPLICATION_CREDENTIALS={{ google_application_credentials }}
+        GOOGLE_PROJECT_ID={{ restic.gcp.google_project_id }}
+        GOOGLE_APPLICATION_CREDENTIALS={{ restic.gcp.google_application_credentials }}
         RESTIC_BACKUP_EXCLUDES="{{ restic.gcp.restic_backup_excludes }}"
         RESTIC_BACKUP_PATHS={{ restic.gcp.restic_backup_paths }}
         RESTIC_PASSWORD="{{ restic.gcp.restic_password }}"
