@@ -1,0 +1,456 @@
+variant: fcos
+version: 1.4.0
+passwd:
+  users:
+{%- for item in passwd.users %}
+  - name: {{ item.name }}
+{%- if item.system %}
+    system: true
+{%- endif  %}
+{%- if item.groups %}
+    groups:
+{%- for item in item.groups %}
+      - {{ item }}
+{%- endfor %}
+{%- endif %}
+{%- if item.ssh_authorized_keys %}
+    ssh_authorized_keys:
+{%- for item in item.ssh_authorized_keys %}
+      - {{ item }}
+{%- endfor %}
+{%- endif %}
+{%- endfor %}
+{%- if passwd.groups %}
+  groups:
+{%- for item in passwd.groups %}
+  - name: {{ item.name }}
+{%- endfor %}
+{%- endif %}
+
+storage:
+  directories:
+  - path: /etc/restic
+    mode: 0750
+
+  - path: /opt/hubot
+    mode: 0750
+
+  - path: /opt/hubot/redis
+    mode: 0750
+
+  files:
+  - path: /etc/hostname
+    mode: 0644
+    overwrite: true
+    contents:
+      inline: {{ system.hostname }}.{{ system.domainname }}
+
+  - path: /etc/systemd/zram-generator.conf
+    mode: 0644
+    contents:
+      inline: |
+        # This config file enables a /dev/zram0 device with the default settings
+        [zram0]
+
+  - path: /etc/sysctl.d/20-silence-audit.conf
+    contents:
+      inline: |
+        kernel.printk=4
+
+  - path: /etc/profile.d/00-aliases.sh
+    overwrite: true
+    contents:
+      inline: |
+        alias vim="vi"
+
+  - path: /etc/profile.d/zz-default-editor.sh
+    overwrite: true
+    contents:
+      inline: |
+        export EDITOR=vi
+        export SYSTEMD_EDITOR=vi
+
+  - path: /etc/sudoers.d/vim-editor
+    overwrite: true
+    contents:
+      inline: |
+        Defaults  env_keep += "SYSTEMD_EDITOR EDITOR"
+
+  - path: /etc/zincati/config.d/55-updates-strategy.toml
+    contents:
+      inline: |
+        [identity]
+        rollout_wariness = {{ system.updates.rollout_wariness }}
+
+        [updates]
+        strategy = "periodic"
+        time_zone = "{{ system.updates.time_zone }}"
+
+        [[updates.periodic.window]]
+        days = {{ system.updates.days }}
+        start_time = "{{ system.updates.start_time }}"
+        length_minutes = {{ system.updates.length_minutes }}
+
+  - path: /etc/hubot/services/versions
+    mode: 0644
+    contents:
+      inline: |
+        HUBOT_CONTAINER_IMAGE={{ hubot.container  }}
+{%- if hubot.redis_local %}
+        REDIS_CONTAINER_IMAGE={{ hubot.redis_container }}
+{% endif  %}
+
+{%- if blazon.enabled %}
+  - path: /usr/local/bin/blazon
+    contents:
+      source: https://raw.githubusercontent.com/quickvm/blazon/master/bin/blazon
+      verification:
+        hash: "sha512-eaf44a45064cfd3aa1c423dfa0b90042227fd869bf6744372760848904f8b7bcb8304441395de9db374f861277d9c174b6fc0261cd2b6f9e0730f70ba45d2433"
+    mode: 0555
+
+  - path: /etc/systemd/system/blazon@.service
+    contents:
+      source: https://raw.githubusercontent.com/quickvm/blazon/master/units/blazon%40.service
+      verification:
+        hash: "sha512-c6d521130b4207436beab83f4fd0b64ebbc8a575dcf2951c4dc47b3e69f7e16ad8ab692907be9beb7dca894f14f21c67b1365c01a090bf1af56b01361a005853"
+    mode: 0644
+{% endif %}
+
+{%- if restic.enabled %}
+  - path: /usr/local/bin/restic-wrapper
+    contents:
+      source: https://raw.githubusercontent.com/quickvm/restic-systemd-units/master/bin/restic-wrapper
+      verification:
+        hash: "sha512-8e8f847a7fef211d9584a03218a456cf2e8042a817af20af9cb6599ba164e97c094898ba1ae8d97e01e81644994f845083b55ec97ac8fb9d20084d3720e73e62"
+    mode: 0555
+
+  - path: /etc/systemd/system/restic@.service
+    contents:
+      source: https://raw.githubusercontent.com/quickvm/restic-systemd-units/master/units/restic%40.service
+      verification:
+        hash: "sha512-b2b814b663206238690a9b23e39ea4aec9bfb7953b9a4659dc8873a4ab0d6ea52ae1f69c7ec790795d924618bd58c0481d3d3fc7d04b064da8d42392469a6204"
+    mode: 0644
+
+  - path: /etc/systemd/system/restic@.timer
+    contents:
+      source: https://raw.githubusercontent.com/quickvm/restic-systemd-units/master/units/restic%40.timer
+      verification:
+        hash: "sha512-dea028c7e7715cbe1622f067c1a3d3ce94521d87beb6b8f46ae73150b30ec3d5bc03b4bc6f36a6e9157a7370170808e455a7597e471c7af52b3cf37f7c660cf2"
+    mode: 0644
+  {% if restic.aws %}
+  - path: /etc/restic/aws.conf
+    mode: 0640
+    contents:
+      inline: |
+        AWS_ACCESS_KEY_ID="{{ restic.aws.aws_key_id }}"
+        AWS_DEFAULT_REGION="{{ restic.aws.aws_region }}"
+        AWS_SECRET_ACCESS_KEY="{{ restic.aws.aws_secret_key }}"
+        RESTIC_BACKUP_EXCLUDES="{{ restic.aws.restic_backup_excludes }}"
+        RESTIC_BACKUP_PATHS={{ restic.aws.restic_backup_paths }}
+        RESTIC_PASSWORD="{{ restic.aws.restic_password }}"
+        RESTIC_REPOSITORY="{{ restic.aws.restic_repository }}"
+        RESTIC_RETENTION_POLICY="{{ restic.aws.restic_retention_policy }}"
+  {% endif  %}
+  {% if restic.gcp %}
+  - path: /etc/restic/gcs-secret-restic-key.json
+    mode: 0600
+    contents:
+      inline: |
+        {{ restic.gcp.service_key }}
+
+  - path: /etc/restic/gcp.conf
+    mode: 0640
+    contents:
+      inline: |
+        GOOGLE_PROJECT_ID={{ google_project_id }}
+        GOOGLE_APPLICATION_CREDENTIALS={{ google_application_credentials }}
+        RESTIC_BACKUP_EXCLUDES="{{ restic.gcp.restic_backup_excludes }}"
+        RESTIC_BACKUP_PATHS={{ restic.gcp.restic_backup_paths }}
+        RESTIC_PASSWORD="{{ restic.gcp.restic_password }}"
+        RESTIC_REPOSITORY="{{ restic.gcp.restic_repository }}"
+        RESTIC_RETENTION_POLICY="{{ restic.gcp.restic_retention_policy }}"
+  {% endif  -%}
+  - path: /etc/restic/exclude.conf
+    mode: 0640
+    contents:
+      inline: |
+        .cache
+        .cargo
+        .local/share/containers/storage/overlay
+        .local/share/libvirt/images
+        .local/share/Trash
+        .rustup
+        go
+        *.img
+        *.iso
+        *.lo
+        *.o
+        *.pyc
+        *.qcow2.xz
+        *.raw.xz
+        *cache*/*
+        *Cache*/*
+        .vagrant.d
+        __pycache__
+        node_modules
+        venv
+{%- endif %}
+
+  - path: /opt/hubot/hubot.env
+    mode: 0640
+    contents:
+      inline: |
+        HUBOT_ADAPTER=slack
+        HUBOT_DESCRIPTION="{{ hubot.description }}"
+        HUBOT_NAME="{{ hubot.name }}"
+        HUBOT_OWNER="{{ hubot.owner }}"
+        HUBOT_SLACK_RTM_CLIENT_OPTS='{"useRtmConnect": "true"}'
+        HUBOT_SLACK_TOKEN={{ hubot.slack_token }}
+        HUBOT_YOUTUBE_API_KEY={{ hubot.youtube_api_key }}
+        HUBOT_YOUTUBE_DISPLAY_VIDEO_TITLE={{ hubot.youtube_display_video_title }}
+        HUBOT_YUBIKEY_API_ID={{ hubot.yubikey_api_id }}
+        REDIS_URL={{ hubot.redis_url }}
+
+systemd:
+  units:
+  - name: docker.service
+    mask: true
+    enabled: false
+
+  - name: docker.socket
+    mask: true
+    enabled: false
+
+  - name: podman.socket
+    mask: false
+    enabled: false
+
+  - name: docker-to-podman-sock.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Create a docker.sock symlink pointing to podman.sock
+      After=podman.service
+      ConditionPathExists=!/var/run/docker.sock
+
+      [Service]
+      Type=oneshot
+      ExecStart=-/usr/bin/bash -c "ln -s /var/run/podman/podman.sock /var/run/docker.sock"
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - name: rpm-ostree-install.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Layer RPMs
+      # We run after `systemd-machine-id-commit.service` to ensure that
+      # `ConditionFirstBoot=true` services won't rerun on the next boot.
+      After=systemd-machine-id-commit.service
+      After=network-online.target
+      Before=zincati.service
+      ConditionPathExists=!/var/lib/rpm-ostree-install.stamp
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/bin/rpm-ostree install --allow-inactive systemd-oomd-defaults restic
+      ExecStart=/bin/touch /var/lib/rpm-ostree-install.stamp
+      ExecStart=/bin/systemctl --no-block reboot
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - name: hubot-pod.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Hubot pod service
+      After=network-online.target zincati.service
+{%- if hubot.redis_local %}
+      Wants=hubot-redis.service hubot.service
+      Before=hubot-redis.service hubot.service
+{%- else  %}
+      Wants=hubot.service
+      Before=hubot.service
+{%- endif %}
+
+      [Service]
+      LimitNOFILE=1048576
+      Environment=PODMAN_SYSTEMD_UNIT=%n
+      Restart=on-failure
+      ExecStartPre=-podman pod create \
+        --infra-conmon-pidfile %T/%N.pid \
+        --name %N
+      ExecStart=podman pod start %N
+      ExecStop=podman pod stop -t 10 %N
+      ExecStopPost=podman pod stop -t 10 %N
+      ExecStopPost=podman pod rm %N
+      PIDFile=%T/%N.pid
+      KillMode=none
+      Type=forking
+      SyslogIdentifier=%N
+
+      [Install]
+      WantedBy=multi-user.target
+{% if hubot.redis_local %}
+  - name: hubot-redis.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Hubot Redis Service
+      After=network-online.target
+      BindsTo=hubot-pod.service
+      After=hubot-pod.service zincati.service
+      Before=hubot.service
+
+      [Service]
+      LimitNOFILE=1048576
+      Environment=PODMAN_SYSTEMD_UNIT=%n
+      EnvironmentFile=/etc/hubot/services/versions
+      Restart=on-failure
+      ExecStartPre=-podman volume create %N
+      ExecStart=podman run \
+        --name %N \
+        --pod hubot-pod \
+        --log-driver journald \
+        --replace --rm -d \
+        --sdnotify conmon \
+        --volume /opt/hubot/redis:/data:Z \
+        ${REDIS_CONTAINER_IMAGE} redis-server --appendonly yes
+      ExecStop=podman stop -t 10 %N
+      ExecStopPost=podman stop -i -t 10 %N
+      ExecStopPost=podman rm -i -v %N
+      Type=notify
+      NotifyAccess=all
+      Delegate=true
+      SyslogIdentifier=%N
+      Slice=machine-hubot-pod.slice
+
+      [Install]
+      WantedBy=multi-user.target default.target
+{%- endif %}
+
+  - name: hubot.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Hubot Service
+      After=network-online.target
+      BindsTo=hubot-pod.service
+{%- if blazon.enabled %}
+      OnFailure=blazon@%N.service
+{%- endif %}
+{%- if hubot.redis_local %}
+      After=hubot-pod.service hubot-redis.service
+{%- else  %}
+      After=hubot-pod.service
+{%- endif %}
+
+      [Service]
+      LimitNOFILE=1048576
+      Environment=PODMAN_SYSTEMD_UNIT=%n
+      Restart=on-failure
+      RestartSec=30
+      EnvironmentFile=/etc/hubot/services/versions
+      ExecStartPre=-podman pull ${HUBOT_CONTAINER_IMAGE}
+      ExecStart=podman run \
+        --name %N \
+        --pod hubot-pod \
+        --log-driver journald \
+        --replace --rm -d \
+        --sdnotify conmon \
+        --env-file /opt/hubot/hubot.env \
+        ${HUBOT_CONTAINER_IMAGE}
+      ExecStop=podman stop -t 30 %N
+      ExecStopPost=podman stop -i -t 30 %N
+      ExecStopPost=podman rm -i -v %N
+      Type=notify
+
+      NotifyAccess=all
+      Delegate=true
+      SyslogIdentifier=%N
+      Slice=machine-hubot-pod.slice
+
+      [Install]
+      WantedBy=multi-user.target
+{% if restic.gcp %}
+  - name: restic-init@gcp.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Init Restic %i repository
+      After=network-online.target rpm-ostree-install.service
+      ConditionPathExists=!/var/lib/restic-%i-init.stamp
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/bin/restic-wrapper /etc/restic/%i.conf init
+      ExecStart=/bin/touch /var/lib/restic-%i-init.stamp
+      SuccessExitStatus=1
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - name: restic@gcp.service
+    enabled: true
+    dropins:
+    - name: override.conf
+      contents: |
+        [Unit]
+        After=restic-init@gcp.service
+{%- if blazon.enabled %}
+        OnFailure=blazon@%N.service
+
+  - name: blazon@restic@gcp.service
+    enabled: false
+    dropins:
+    - name: override.conf
+      contents: |
+        [Service]
+        Environment=BLAZON_NOTIFY_SLACK={{ blazon.notify_slack }}
+        Environment=BLAZON_SLACK_WEBHOOK_URL="{{ blazon.slack_webhook_url }}"
+{%- endif %}
+{% endif %}
+
+{%- if restic.aws %}
+  - name: restic-init@aws.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Init Restic %i repository
+      After=network-online.target rpm-ostree-install.service
+      ConditionPathExists=!/var/lib/restic-%i-init.stamp
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/bin/restic-wrapper /etc/restic/%i.conf init
+      ExecStart=/bin/touch /var/lib/restic-%i-init.stamp
+      SuccessExitStatus=1
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - name: restic@aws.service
+    enabled: true
+    dropins:
+    - name: override.conf
+      contents: |
+        [Unit]
+        After=restic-init@aws.service
+{%- if blazon.enabled %}
+        OnFailure=blazon@%N.service
+
+  - name: blazon@restic@aws.service
+    enabled: false
+    dropins:
+    - name: override.conf
+      contents: |
+        [Service]
+        Environment=BLAZON_NOTIFY_SLACK={{ blazon.notify_slack }}
+        Environment=BLAZON_SLACK_WEBHOOK_URL="{{ blazon.slack_webhook_url }}"
+{%- endif %}
+{% endif %}

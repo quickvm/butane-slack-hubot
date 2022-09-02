@@ -1,0 +1,29 @@
+FROM quay.io/quickvm/fedora:36
+MAINTAINER "QuickVM BuildBot <buildbot@quickvm.com>"
+
+RUN dnf upgrade --setopt install_weak_deps=false -y && \
+    dnf install npm nodejs -y && \
+    dnf -y clean all && rm -rf /var/cache/yum
+RUN npm install -g yo generator-hubot coffeescript hubot
+
+RUN useradd hubot
+
+ADD entrypoint.sh /home/hubot
+RUN chown hubot:hubot /home/hubot/ -R
+
+WORKDIR /home/hubot
+USER hubot
+
+ENV HUBOT_ADAPTER=slack
+ENV HUBOT_SLACK_TOKEN=
+ENV HUBOT_NAME=qvmbot
+ENV HUBOT_OWNER=QuickVM
+ENV HUBOT_DESCRIPTION="QuickVM BuildBot"
+ENV HUBOT_YUBIKEY_API_ID=
+ENV HUBOT_YOUTUBE_API_KEY=
+ENV HUBOT_YOUTUBE_DISPLAY_VIDEO_TITLE=true
+ENV REDIS_URL=redis://localhost:6379/hubot
+ENV HUBOT_SLACK_RTM_CLIENT_OPTS='{"useRtmConnect": "true"}'
+
+CMD ["./bin/hubot"]
+ENTRYPOINT ["./entrypoint.sh"]
