@@ -1,6 +1,10 @@
 # Butane-Slack-Hubot
 
-This is a Butane repo for setting up [Hubot](https://hubot.github.com/) for Slack on a Fedora CoreOS VM.
+This is a Butane template for setting up [Hubot](https://hubot.github.com/) for Slack on a Fedora CoreOS VM. It uses a Jinja2 template and some variables to allow you to customize it for your needs. You can render it easily with [Bupy](https://github.com/quickvm/bupy). Just customize the `butanevars.yaml` file and run Bupy to process it.
+
+```
+bupy template slack-hubot.bu.j2 butanevars.yaml --show
+```
 
 ## Create Classic Slack App
 Stolen from this issue: https://github.com/slackapi/hubot-slack/issues/584#issuecomment-611808704
@@ -57,4 +61,28 @@ DO_IMAGE_ID=$(doctl compute image list-user | grep my-fcos-image | cut -f1 -d ' 
 DO_KEY_ID=$(doctl compute ssh-key list | grep my-key | cut -f1 -d ' ')
 doctl compute droplet create my-fcos-droplet --image "${DO_IMAGE_ID}" --region nyc3 --size s-1vcpu-1gb --user-data-file <(bupy template slack-hubot.bu.j2 butanevars.yaml) --ssh-keys "${DO_KEY_ID}" --wait
 ```
+
+## License
+
+MIT License
+
+Copyright (c) 2022 QuickVM
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
