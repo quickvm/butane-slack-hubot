@@ -201,10 +201,9 @@ storage:
     contents:
       inline: |
         HUBOT_ADAPTER=slack
-        HUBOT_DESCRIPTION="{{ hubot.description }}"
-        HUBOT_NAME="{{ hubot.name }}"
-        HUBOT_OWNER="{{ hubot.owner }}"
-        HUBOT_SLACK_RTM_CLIENT_OPTS='{"useRtmConnect": "true"}'
+        HUBOT_DESCRIPTION='{{ hubot.description }}'
+        HUBOT_NAME='{{ hubot.name }}'
+        HUBOT_OWNER='{{ hubot.owner }}'
         HUBOT_SLACK_TOKEN={{ hubot.slack_token }}
         HUBOT_YOUTUBE_API_KEY={{ hubot.youtube_api_key }}
         HUBOT_YOUTUBE_DISPLAY_VIDEO_TITLE={{ hubot.youtube_display_video_title }}
